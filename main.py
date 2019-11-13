@@ -1,3 +1,4 @@
+import os
 import argparse
 import torch
 import torch.nn as nn
@@ -107,9 +108,11 @@ def train(net, criterion, dataloader, optimizer, args):
           mlog.meters['acc1'].update(acc1.item(), n=batch_size)
           iters += 1
           
-          if iters % snapshot == snapshot - 1:
-              path = os.path.join(args.get('train', 'snapshot_prefix'), 'iter_%d.pt'%iters)
-              torch.save(model.state_dict(), path)
+          if iters % snapshot == 0:
+              path = os.path.join(args.get('train', 'snapshot_prefix'),
+                                  args.get('model', 'net'))
+              utils.mkdir(path)
+              torch.save(net.state_dict(), path + '/' + 'iter_%d.pt'%iters)
     elif lr_decay_mode == 'epoch':
         pass
     else:
