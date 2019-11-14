@@ -81,7 +81,19 @@ def get_optimizer(net, cfgs):
     return optimizer
 
 
-def train(net, criterion, dataloader, optimizer, cfgs):
+def get_scheduler(optimizer, cfgs):
+    policy = cfgs.get('train', 'lr_policy')
+    if policy == 'multistep':
+      milestones = list(map(int, cfgs.get('train', 'step_size').split(',')))
+      gamma = cfgs.getfloat('train', 'gamma')
+      scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones, gamma=0.1, last_epoch=-1)
+    else:
+      logging.fatal('No LR polciy')
+    return scheduler
+
+
+
+def train(net, criterion, dataloader, optimizer, scheduler, cfgs):
     lr_decay_mode = cfgs.get('train', 'lr_decay_mode')
     device = cfgs.get('model', 'device')
     display = cfgs.getint('train', 'display')
@@ -107,6 +119,7 @@ def train(net, criterion, dataloader, optimizer, cfgs):
           loss = criterion(outputs, labels)
           loss.backward()
           optimizer.step()
+          scheduler.step()
 
           # print statistics
           acc1, = utils.accuracy(outputs, labels, topk=(1,))
@@ -121,7 +134,7 @@ def train(net, criterion, dataloader, optimizer, cfgs):
               utils.mkdir(path)
               torch.save(net.to('cpu').state_dict(), path + '/' + 'iter_%d.pt'%iters)
     elif lr_decay_mode == 'epoch':
-        pass
+        logging.fatal("Epoch decay is not implentation")
     else:
         logging.fatal("Please specific lr_decay_mode. " +
                       "Currently only iter and epoch are accepted!")
@@ -193,9 +206,9 @@ def train_net(cfgs):
     net = get_net(cfgs.get('model', 'net'), cfgs.get('model', 'params'))
     criterion = nn.CrossEntropyLoss()
     optimizer = get_optimizer(net, cfgs)
-
+    scheduler = get_scheduler(optimizer, cfgs)
     logging.info('Train Network')
-    train(net, criterion, trainloader, optimizer, cfgs)
+    train(net, criterion, trainloader, optimizer, scheduler, cfgs)
 
 
 def test_net(cfgs, test_model):
@@ -279,9 +292,7 @@ def test_net(cfgs, test_model):
           res_path = os.path.join(path, d.replace('.pt', '_{top1.global_avg:.3f}.npy'.format(top1=mlog.acc1)))
           logging.info(' * Writing results to %s'%res_path)
           np.save(res_path, np.concatenate(res))
-    
 
-  
 
 if __name__ == '__main__':
     args = get_command()
@@ -293,6 +304,3 @@ if __name__ == '__main__':
     else:
       logging.info('Train')
       train_net(cfgs)
-    
-
-    
