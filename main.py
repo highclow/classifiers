@@ -1,5 +1,7 @@
 import os
 import argparse
+from glob import glob
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -21,10 +23,12 @@ from models import resnet50
 def get_command():
     parser = argparse.ArgumentParser(description=
                                      'Process for training classifier')
-    parser.add_argument('-c','--config', type=str, required=True,
+    parser.add_argument('-f','--config', type=str, required=True,
                         help='configure file')
     parser.add_argument('--test', action='store_true',
                         help='test the network')
+    parser.add_argument('--test-model', type=str, default=None,
+                        help='test model')
     args = parser.parse_args()
     return args
 
@@ -90,7 +94,7 @@ def train(net, criterion, dataloader, optimizer, cfgs):
     iters = 0
     if lr_decay_mode == 'iter':
       while True:
-        running_loss = 0.0
+        mlog.clear()
         for inputs, labels in mlog.log_every(dataloader, display, 'train'):
           inputs = inputs.to(device)
           labels = labels.to(device)
@@ -141,7 +145,7 @@ def adversarial_train(net, criterion, dataloader, optimizer, cfgs):
     iters = 0
     if lr_decay_mode == 'iter':
       while True:
-        running_loss = 0.0
+        mlog.clear()
         for inputs, labels in mlog.log_every(dataloader, display, 'train'):
           inputs = inputs.to(device)
           labels = labels.to(device)
@@ -194,7 +198,7 @@ def train_net(cfgs):
     train(net, criterion, trainloader, optimizer, cfgs)
 
 
-def test_net(cfgs):
+def test_net(cfgs, test_model):
     device = cfgs.get('model', 'device')
     if device == 'cuda':
       device_id = cfgs.getint('model', 'device_id')
@@ -208,27 +212,75 @@ def test_net(cfgs):
                         cfgs.get('model', 'net'))
 
     mlog = utils.MetricLogger(delimiter="  ")
-    for d in os.listdir(path):
-      if '12' in d or '10' in d:
-        continue
-      model_path = os.path.join(path, d)
-      logging.info('Current Model: %s'%model_path)
-      net = get_net(cfgs.get('model', 'net'), model_path).to(device)
-      net.eval()
+    display = cfgs.getint('test', 'display')
+    with torch.no_grad():
+      if test_model is not None:
+          logging.info('Current Model: %s'%test_model)
+          net = get_net(cfgs.get('model', 'net'), test_model, device)
+          net.eval()
+          net.to(device)
 
-      for inputs, labels in mlog.log_every(testloader, 1, 'test'):
-        inputs = inputs.to(device)
-        labels = labels.to(device)
+          res = []
+          mlog.clear()
+          for inputs, labels in mlog.log_every(testloader, display, 'test'):
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            # forward 
+            outputs = net(inputs)
+            outputs = F.softmax(outputs, dim=1)
+
+            res.append(np.hstack((outputs.cpu().numpy(), labels.cpu().numpy()[:,np.newaxis])))
+            # print statistics
+            acc1, = utils.accuracy(outputs, labels, topk=(1,))
+            batch_size = inputs.shape[0]
+            mlog.meters['acc1'].update(acc1.item(), n=batch_size)
+          mlog.synchronize_between_processes()
+          logging.info(' * Acc@1 {top1.global_avg:.3f}'.format(top1=mlog.acc1))
+          res_path = test_model.replace('.pt', '_{top1.global_avg:.3f}.npy'.format(top1=mlog.acc1))
+          logging.info(' * Writing results to %s'%res_path)
+          np.save(res_path, np.concatenate(res))
+      else:
+        for d in sorted(sorted(os.listdir(path)), key=len):
+          model_path = os.path.join(path, d)
+          res_path = model_path.replace('.pt', '_*.npy')
+          logging.info('Current Model: %s'%model_path)
+          net = get_net(cfgs.get('model', 'net'), model_path, device)
+          net.eval()
+          net.to(device)
+
+          res_files = glob(res_path)
+          if len(res_files) != 0:
+              print(res_files)
+              logging.info('Current Model: %s Has Results %s!'%(model_path,res_files[0]))
+              continue
+          logging.info('Current Model: %s'%model_path)
+          net = get_net(cfgs.get('model', 'net'), model_path, device)
+          net.eval()
+          net.to(device)
   
-        # forward 
-        outputs = net(inputs)
-        outputs = F.softmax(outputs, dim=1)
-        print(outputs, labels)
-  
-        # print statistics
-        acc1, = utils.accuracy(outputs, labels, topk=(1,))
-        batch_size = inputs.shape[0]
-        mlog.meters['acc1'].update(acc1.item(), n=batch_size)
+          res = []
+          mlog.clear()
+          for inputs, labels in mlog.log_every(testloader, display, 'test'):
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+    
+            # forward 
+            outputs = net(inputs)
+            outputs = F.softmax(outputs, dim=1)
+    
+            res.append(np.hstack((outputs.cpu().numpy(), labels.cpu().numpy()[:,np.newaxis])))
+            # print statistics
+            acc1, = utils.accuracy(outputs, labels, topk=(1,))
+            batch_size = inputs.shape[0]
+            mlog.meters['acc1'].update(acc1.item(), n=batch_size)
+          mlog.synchronize_between_processes()
+          logging.info(' * Acc@1 {top1.global_avg:.3f}'.format(top1=mlog.acc1))
+          res_path = os.path.join(path, d.replace('.pt', '_{top1.global_avg:.3f}.npy'.format(top1=mlog.acc1)))
+          logging.info(' * Writing results to %s'%res_path)
+          np.save(res_path, np.concatenate(res))
+    
+
   
 
 if __name__ == '__main__':
@@ -237,7 +289,7 @@ if __name__ == '__main__':
     cfgs = get_config(args.config)
     if args.test:
       logging.info('Test')
-      test_net(cfgs)
+      test_net(cfgs, args.test_model)
     else:
       logging.info('Train')
       train_net(cfgs)

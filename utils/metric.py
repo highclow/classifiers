@@ -83,6 +83,10 @@ class MetricLogger(object):
             assert isinstance(v, (float, int))
             self.meters[k].update(v)
 
+    def clear(self):
+        for meter in self.meters.values():
+            meter.__init__()
+
     def __getattr__(self, attr):
         if attr in self.meters:
             return self.meters[attr]
