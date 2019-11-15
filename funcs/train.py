@@ -8,7 +8,7 @@ from models import get_net, get_optimizer, get_scheduler
 
 
 def train_net(net, criterion, dataloader, optimizer, scheduler, cfgs):
-    logging.info('Start training Network...')
+    logging.info('Start training network...')
     lr_decay_mode = cfgs.get('train', 'lr_decay_mode')
     device = cfgs.get('train', 'device')
     display = cfgs.getint('train', 'display')

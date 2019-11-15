@@ -8,7 +8,7 @@ import torch.nn.functional as F
 import logging
 import utils
 from configs import get_config
-from funcs import train
+from funcs import train, evaluate
 
 
 def get_command():
@@ -27,7 +27,6 @@ def get_command():
 
 
 def test_net(cfgs, test_model):
-    device = cfgs.get('model', 'device')
     if device == 'cuda':
       device_id = cfgs.getint('model', 'device_id')
       torch.cuda.set_device(device_id)
@@ -107,10 +106,8 @@ def test_net(cfgs, test_model):
           logging.info(' * Writing results to %s'%res_path)
           np.save(res_path, np.concatenate(res))
 
-def evaluate(cfgs, split, weights):
-    pass
 
-def test(cfgs, split, eights):
+def test(cfgs, eights):
     pass
 
 

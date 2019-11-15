@@ -37,7 +37,7 @@ class ImageList(Dataset):
 
 
 def get_imagelist_dataloader(cfgs, split):
-    logging.info('Create %s data loader'%split)
+    logging.info('Create %s data loader from %s'%(split,cfgs.get(split,'imagelist')))
     if split == 'train':
       transform = transforms.Compose(
               [transforms.Resize(256),
