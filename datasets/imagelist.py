@@ -1,8 +1,9 @@
-import torch.utils.data 
-
-from PIL import Image
 import os
+import logging
+from PIL import Image
 
+from torch.utils.data import Dataset, DataLoader
+import torchvision.transforms as transforms
 
 
 def default_list_reader(fileList):
@@ -14,7 +15,7 @@ def default_list_reader(fileList):
     return imgList
 
 
-class ImageList(torch.utils.data.Dataset):
+class ImageList(Dataset):
     def __init__(self, root, imagelist, transform=None):
         self.root      = root
         self.imgList   = default_list_reader(imagelist)
@@ -33,3 +34,31 @@ class ImageList(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.imgList)
+
+
+def get_imagelist_dataloader(cfgs, split):
+    logging.info('Create %s data loader'%split)
+    if split == 'train':
+      transform = transforms.Compose(
+              [transforms.Resize(256),
+#               RandomRotation(15),
+               transforms.RandomCrop(224),
+               transforms.RandomHorizontalFlip(),
+#               transforms.RandomErasing(),
+               transforms.ToTensor(),
+              ])
+    else:
+      transform = transforms.Compose(
+              [transforms.Resize(256),
+               transforms.CenterCrop(224),
+               transforms.ToTensor(),
+              ])
+
+    dataset = ImageList(root=cfgs.get(split,'root'),
+                        imagelist=cfgs.get(split,'imagelist'),
+                        transform = transform)
+    loader = DataLoader(dataset,
+                        batch_size=cfgs.getint(split, 'batch_size'),
+                        shuffle=cfgs.getboolean(split, 'shuffle'),
+                        num_workers=cfgs.getint(split, 'num_workers'))
+    return loader
