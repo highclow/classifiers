@@ -1,6 +1,7 @@
 import logging
 import configparser
 import io
+import torch
 
 # Load the configuration file
 def get_config(args):
@@ -9,6 +10,12 @@ def get_config(args):
 
     if args.weight:
         config[args.func]['params'] = args.weight
+
+    if not torch.cuda.is_available():
+        logging.info('No GPU found! Use CPU instead!')
+        config['train']['device'] = 'cpu'
+        config['eval']['device'] = 'cpu'
+        config['test']['device'] = 'cpu'
     ## List all contents
     #logging.debug("List all contents")
     #for section in config.sections():

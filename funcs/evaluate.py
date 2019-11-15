@@ -28,25 +28,30 @@ def eval_net(net, dataloader, model_path, cfgs):
         outputs = net(inputs)
         outputs = F.softmax(outputs, dim=1)
 
-        res.append(np.hstack((outputs.cpu().numpy(), labels.cpu().numpy()[:,np.newaxis])))
+        res.append(np.hstack((outputs.cpu().numpy(),
+                              labels.cpu().numpy()[:,np.newaxis])))
         # print statistics
         acc1, = utils.accuracy(outputs, labels, topk=(1,))
         batch_size = inputs.shape[0]
         mlog.meters['acc1'].update(acc1.item(), n=batch_size)
       mlog.synchronize_between_processes()
       logging.info(' * Acc@1 {top1.global_avg:.3f}'.format(top1=mlog.acc1))
-      res_path = model_path.replace('.pt', '_{top1.global_avg:.3f}.npy'.format(top1=mlog.acc1))
+      res_path = model_path.replace(
+             '.pt', '_{top1.global_avg:.3f}.npy'.format(top1=mlog.acc1))
       logging.info(' * Writing results to %s'%res_path)
       np.save(res_path, np.concatenate(res))
 
 
-def evaluate(cfgs, weights):
-    utils.set_device(cfgs.get('eval', 'device'), cfgs.getint('eval', 'device_id'))
+def evaluate(cfgs):
+    utils.set_device(cfgs.get('eval', 'device'),
+                     cfgs.getint('eval', 'device_id'))
     loader = get_imagelist_dataloader(cfgs, 'eval')
-    if weights:
+    if cfgs.get('eval', 'params'):
       model_path = cfgs.get('eval', 'params')
       logging.info('Loading Model %s'%model_path)
-      net = get_net(cfgs.get('model', 'net'), model_path, cfgs.getint('model', 'classes'))
+      net = get_net(cfgs.get('model', 'net'),
+                    cfgs.getint('model', 'classes'),
+                    model_path)
       eval_net(net, loader, model_path, cfgs)
     else:
       path = os.path.join(cfgs.get('train', 'snapshot_prefix'),
@@ -54,6 +59,8 @@ def evaluate(cfgs, weights):
       for d in sorted(sorted(os.listdir(path)), key=len):
         model_path = os.path.join(path, d)
         logging.info('Loading Model %s'%model_path)
-        net = get_net(cfgs.get('model', 'net'), model_path, cfgs.getint('model', 'classes'))
+        net = get_net(cfgs.get('model', 'net'),
+                      cfgs.getint('model', 'classes'),
+                      model_path)
         eval_net(net, loader, model_path, cfgs)
 

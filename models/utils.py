@@ -4,12 +4,11 @@ import torch.optim as optim
 
 from .resnet import *
 
-def get_net(net_name, param_path, num_classes, device='cpu'):
+def get_net(net_name, num_classes, param_path, device='cpu'):
     logging.info('Create Network %s'%net_name)
     if net_name == 'ResNet50':
       net = resnet50(num_classes=num_classes)
       if param_path:
-        logging.info('Initialize from %s'%param_path)
         params = torch.load(param_path, map_location=device)
         for n in net.state_dict().keys():
           if n in params and params[n].shape == net.state_dict()[n].shape:

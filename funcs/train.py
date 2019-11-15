@@ -59,11 +59,14 @@ def train_net(net, criterion, dataloader, optimizer, scheduler, cfgs):
     logging.info('Finished Training')
 
 
-def train(cfgs, weights):
-    utils.set_device(cfgs.get('train', 'device'), cfgs.getint('train', 'device_id'))
+def train(cfgs):
+    utils.set_device(cfgs.get('train', 'device'),
+                     cfgs.getint('train', 'device_id'))
     trainloader = get_imagelist_dataloader(cfgs, 'train')
 
-    net = get_net(cfgs.get('model', 'net'), cfgs.get('train', 'params'), cfgs.getint('model', 'classes'))
+    net = get_net(cfgs.get('model', 'net'),
+                  cfgs.getint('model', 'classes'),
+                  cfgs.get('train', 'params'))
     criterion = nn.CrossEntropyLoss()
     optimizer = get_optimizer(net, cfgs)
     scheduler = get_scheduler(optimizer, cfgs)

@@ -15,6 +15,15 @@ def default_list_reader(fileList):
     return imgList
 
 
+def default_transform():
+    transform = transforms.Compose(
+        [transforms.Resize(256),
+         transforms.CenterCrop(224),
+         transforms.ToTensor(),
+        ])
+    return transform
+
+
 class ImageList(Dataset):
     def __init__(self, root, imagelist, transform=None):
         self.root      = root
@@ -48,11 +57,7 @@ def get_imagelist_dataloader(cfgs, split):
                transforms.ToTensor(),
               ])
     else:
-      transform = transforms.Compose(
-              [transforms.Resize(256),
-               transforms.CenterCrop(224),
-               transforms.ToTensor(),
-              ])
+      transform = default_transform()
 
     dataset = ImageList(root=cfgs.get(split,'root'),
                         imagelist=cfgs.get(split,'imagelist'),
