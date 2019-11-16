@@ -60,6 +60,7 @@ def visualize(cfgs):
           if '.npy' in filename:
             data = np.load(filename)
           elif '.txt' in filename:
+
         except:
           logging.fatal('Cannot load file %s'%filename)
           continue
