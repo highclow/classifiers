@@ -11,11 +11,11 @@ from models import get_net
 
 
 def test_net(net, model_path, cfgs):
-    logging.info('Start testing network...')
-    device = cfgs.get('test', 'device')
-    display = cfgs.getint('test', 'display')
-    root = cfgs.get('test', 'root')
-    filelist = cfgs.get('test', 'imagelist')
+    logging.info("Start testing network...")
+    device = cfgs.get("test", "device")
+    display = cfgs.getint("test", "display")
+    root = cfgs.get("test", "root")
+    filelist = cfgs.get("test", "imagelist")
 
     mlog = utils.MetricLogger(delimiter="  ")
     net.eval()
@@ -25,7 +25,7 @@ def test_net(net, model_path, cfgs):
       mlog.clear()
       imagelist = default_list_reader(filelist)
       transform = default_transform()
-      for imgpath, label in mlog.log_every(imagelist, display, 'test'):
+      for imgpath, label in mlog.log_every(imagelist, display, "test"):
         img = Image.open(os.path.join(root, imgpath))
         inputs = torch.as_tensor(transform(img)[np.newaxis,:])
         inputs = inputs.to(device)
@@ -33,23 +33,22 @@ def test_net(net, model_path, cfgs):
         # forward 
         outputs = net(inputs)
         outputs = F.softmax(outputs, dim=1)
+        res.append([imgpath] + outputs.cpu().numpy().tolist()[0] + [label])
 
-        res.append([imagelist] + outputs.cpu().numpy().tolist()[0] + [label])
-        # print statistics
       mlog.synchronize_between_processes()
-      res_path = model_path.replace('.pt', '%s.npy'%filelist.split()[-1])
-      logging.info(' * Writing results to %s'%res_path)
-      np.save(res_path, np.concatenate(res))
+      res_path = model_path.replace(".pt", "_%s"%filelist.split('/')[-1])
+      logging.info(" * Writing results to %s"%res_path)
+      utils.write_to_txt(res_path, res)
 
 
 def test(cfgs):
-    utils.set_device(cfgs.get('test', 'device'),
-                     cfgs.getint('test', 'device_id'))
-    if cfgs.get('test', 'params'):
-      model_path = cfgs.get('test', 'params')
-      logging.info('Loading model %s'%model_path)
-      net = get_net(cfgs.get('model', 'net'),
-                    cfgs.getint('model', 'classes'),
+    utils.set_device(cfgs.get("test", "device"),
+                     cfgs.getint("test", "device_id"))
+    if cfgs.get("test", "params"):
+      model_path = cfgs.get("test", "params")
+      logging.info("Loading model %s"%model_path)
+      net = get_net(cfgs.get("model", "net"),
+                    cfgs.getint("model", "classes"),
                     model_path)
       test_net(net, model_path, cfgs)
     else:

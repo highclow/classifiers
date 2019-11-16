@@ -1,3 +1,4 @@
 from .train import train
-from .evaluate import evaluate
+from .validate import validate
 from .test import test
+from .visualize import visualize

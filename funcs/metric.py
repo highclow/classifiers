@@ -1,6 +1,0 @@
-
-
-
-
-def metric(cfgs):
-    pass

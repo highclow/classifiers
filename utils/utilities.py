@@ -15,16 +15,24 @@ def mkdir(path):
 def set_log(path):
     if path:
         ts = time.time()
-        logging.basicConfig(filename='%s.%s'%(path, ts),
-                            format='%(asctime)s %(levelname)s %(module)s: %(message)s',
+        logging.basicConfig(filename="%s.%s"%(path, ts),
+                            format="%(asctime)s %(levelname)s %(module)s: %(message)s",
                             level=logging.INFO)
     else:
-        logging.basicConfig(format='%(asctime)s %(levelname)s %(module)s: %(message)s',
+        logging.basicConfig(format="%(asctime)s %(levelname)s %(module)s: %(message)s",
                             level=logging.INFO)
 
 def set_device(device, device_id):
-    if device == 'cuda':
+    if device == "cuda":
         logging.info("Use CUDA, set gpu device %d as default!"%device_id)
         torch.cuda.set_device(device_id)
     else:
         logging.info("Use CPU!")
+
+
+def write_to_txt(path, data):
+    with open(path, 'w') as f:
+      for _list in data:
+        for _string in _list:
+          f.write(str(_string) + ' ')
+        f.write('\n')
