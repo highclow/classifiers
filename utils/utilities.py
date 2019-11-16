@@ -36,3 +36,12 @@ def write_to_txt(path, data):
         for _string in _list:
           f.write(str(_string) + ' ')
         f.write('\n')
+
+def read_to_txt(path):
+    imagelist = []
+    data = []
+    with open(path, 'r') as f:
+      for item in f.readlines():
+        tmp = item.split()
+        imagelist.append(tmp[0])
+        data.append(list(map(int, tmp[1:])))

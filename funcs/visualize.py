@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif']=['SimHei'] #用来正常显示中文标签
 plt.rcParams['axes.unicode_minus']=False #用来正常显示负号
 
+from utils import write_to_txt
 
 
 def get_roc(vec, cls=0):
@@ -56,7 +57,9 @@ def visualize(cfgs):
       for filename in imagelist:
         try:
           logging.info('Load file %s'%filename)
-          data = np.load(filename)
+          if '.npy' in filename:
+            data = np.load(filename)
+          elif '.txt' in filename:
         except:
           logging.fatal('Cannot load file %s'%filename)
           continue
