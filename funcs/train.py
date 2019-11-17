@@ -1,4 +1,5 @@
 import os, sys
+import time
 import logging
 import torch
 import torch.nn as nn
@@ -48,7 +49,7 @@ def train_net(net, criterion, dataloader, optimizer, scheduler, cfgs):
               path = os.path.join(cfgs.get("train", "snapshot_prefix"),
                                   cfgs.get("model", "net"))
               utils.mkdir(path)
-              torch.save(net.state_dict(), path + "/" + "iter_%d.pt"%iters)
+              torch.save(net.state_dict(), path + "/" + "iter_%d_s%d.pt"%(iters, int(time.time())))
     elif lr_decay_mode == "epoch":
         logging.fatal("Epoch decay is not implentation")
         sys.exit(1)
@@ -79,50 +80,50 @@ def train(cfgs):
 ###################
 # FGSM
 # PGD
-def adversarial_train(net, criterion, dataloader, optimizer, cfgs):
-    lr_decay_mode = cfgs.get("train", "lr_decay_mode")
-    device = cfgs.get("model", "device")
-    display = cfgs.getint("train", "display")
-    snapshot = cfgs.getint("train", "snapshot")
-
-    mlog = utils.MetricLogger(delimiter="  ")
-    mlog.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
-    net.train()
-    net = net.to(device)
-    iters = 0
-    if lr_decay_mode == "iter":
-      while True:
-        mlog.clear()
-        for inputs, labels in mlog.log_every(dataloader, display, "train"):
-          inputs = inputs.to(device)
-          labels = labels.to(device)
-
-          # zero the parameter gradients
-          optimizer.zero_grad()
-
-          # forward + backward + optimize
-          outputs = net(inputs)
-          loss = criterion(outputs, labels)
-          loss.backward()
-          optimizer.step()
-
-          # print statistics
-          acc1, = utils.accuracy(outputs, labels, topk=(1,))
-          batch_size = inputs.shape[0]
-          mlog.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
-          mlog.meters["acc1"].update(acc1.item(), n=batch_size)
-          iters += 1
-
-          if iters % snapshot == 0:
-              path = os.path.join(cfgs.get("train", "snapshot_prefix"),
-                                  cfgs.get("model", "net"))
-              utils.mkdir(path)
-              torch.save(net.to("cpu").state_dict(), path + "/" + "iter_%d.pt"%iters)
-    elif lr_decay_mode == "epoch":
-        pass
-    else:
-        logging.fatal("Please specific lr_decay_mode. " +
-                      "Currently only iter and epoch are accepted!")
-
-    logging.info("Finished Training")
-
+#def adversarial_train(net, criterion, dataloader, optimizer, cfgs):
+#    lr_decay_mode = cfgs.get("train", "lr_decay_mode")
+#    device = cfgs.get("model", "device")
+#    display = cfgs.getint("train", "display")
+#    snapshot = cfgs.getint("train", "snapshot")
+#
+#    mlog = utils.MetricLogger(delimiter="  ")
+#    mlog.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
+#    net.train()
+#    net = net.to(device)
+#    iters = 0
+#    if lr_decay_mode == "iter":
+#      while True:
+#        mlog.clear()
+#        for inputs, labels in mlog.log_every(dataloader, display, "train"):
+#          inputs = inputs.to(device)
+#          labels = labels.to(device)
+#
+#          # zero the parameter gradients
+#          optimizer.zero_grad()
+#
+#          # forward + backward + optimize
+#          outputs = net(inputs)
+#          loss = criterion(outputs, labels)
+#          loss.backward()
+#          optimizer.step()
+#
+#          # print statistics
+#          acc1, = utils.accuracy(outputs, labels, topk=(1,))
+#          batch_size = inputs.shape[0]
+#          mlog.update(loss=loss.item(), lr=optimizer.param_groups[0]["lr"])
+#          mlog.meters["acc1"].update(acc1.item(), n=batch_size)
+#          iters += 1
+#
+#          if iters % snapshot == 0:
+#              path = os.path.join(cfgs.get("train", "snapshot_prefix"),
+#                                  cfgs.get("model", "net"))
+#              utils.mkdir(path)
+#              torch.save(net.state_dict(), path + "/" + "iter_%d_s%d.pt"%(iters, int(time.time())))
+#    elif lr_decay_mode == "epoch":
+#        pass
+#    else:
+#        logging.fatal("Please specific lr_decay_mode. " +
+#                      "Currently only iter and epoch are accepted!")
+#
+#    logging.info("Finished Training")
+#

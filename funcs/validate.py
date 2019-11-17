@@ -1,6 +1,7 @@
 import os, sys
 import logging
 import numpy as np
+from glob import glob
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -36,8 +37,9 @@ def val_net(net, dataloader, model_path, cfgs):
         mlog.meters["acc1"].update(acc1.item(), n=batch_size)
       mlog.synchronize_between_processes()
       logging.info(" * Acc@1 {top1.global_avg:.3f}".format(top1=mlog.acc1))
-      res_path = model_path.replace(
-             ".pt", "_{top1.global_avg:.3f}.npy".format(top1=mlog.acc1))
+      postfix = "_{0}_{top1.global_avg:.3f}.npy".format(
+                cfgs.get('val','imagelist').split('/')[-1].split('.')[0], top1=mlog.acc1)
+      res_path = model_path.replace(".pt", postfix)
       logging.info(" * Writing results to %s"%res_path)
       np.save(res_path, np.concatenate(res))
 
@@ -46,22 +48,18 @@ def validate(cfgs):
     utils.set_device(cfgs.get("val", "device"),
                      cfgs.getint("val", "device_id"))
     loader = get_imagelist_dataloader(cfgs, "val")
-    if cfgs.get("val", "params"):
-      model_path = cfgs.get("val", "params")
+    model_str = cfgs.get("val", "params")
+    if model_str:
+      model_list = glob(model_str)
+    else:
+      path = os.path.join(cfgs.get("train", "snapshot_prefix"),
+                          cfgs.get("model", "net"))
+      model_list = [os.path.join(path, p) for p in os.listdir(path) if ".pt" in p]
+      model_list = sorted(sorted(model_list), key=len)
+
+    for model_path in model_list:
       logging.info("Loading Model %s"%model_path)
       net = get_net(cfgs.get("model", "net"),
                     cfgs.getint("model", "classes"),
                     model_path)
       val_net(net, loader, model_path, cfgs)
-    else:
-      path = os.path.join(cfgs.get("train", "snapshot_prefix"),
-                          cfgs.get("model", "net"))
-      model_list = [p for p in os.listdir(path) if ".pt" in p]
-      for d in sorted(sorted(model_list), key=len):
-        model_path = os.path.join(path, d)
-        logging.info("Loading Model %s"%model_path)
-        net = get_net(cfgs.get("model", "net"),
-                      cfgs.getint("model", "classes"),
-                      model_path)
-        val_net(net, loader, model_path, cfgs)
-

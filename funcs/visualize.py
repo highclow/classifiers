@@ -1,5 +1,5 @@
 #coding:utf-8
-import sys
+import os, sys
 import logging
 import json
 import collections
@@ -68,46 +68,49 @@ def visualize(cfgs):
     filename = cfgs.get('visualize', 'filename')
     fdr_limit = cfgs.getfloat('visualize', 'fnr_limit')
     tnr_limit = cfgs.getfloat('visualize', 'tnr_limit')
-    imagelist = glob(filename)
-    if len(imagelist) > 0:
-      for filename in imagelist:
+    result_list = sorted(glob(filename))
+    if len(result_list) > 0:
+      for filename in result_list:
         if '.npy' in filename:
           try:
             logging.info('Load file %s'%filename)
             data = np.load(filename)
+            res_file = 'val_list' if 'val_list' in filename else 'test_list'
+            imagelist = os.path.join(cfgs.get('visualize', 'prefix'),
+                                              '%s.txt'%res_file)
+            imagelist, _ = read_from_txt(imagelist)
           except:
             logging.fatal('Cannot load file %s'%filename)
             continue
           fnr, tnr, threshold = get_metric(data)
-          save_file = filename.replace(".npy",".png")
-          savefig(save_file, fnr, tnr, threshold, fdr_limit, tnr_limit)
+          save_base = filename.replace(".npy","")
         elif '.txt' in filename:
           imagelist, data = read_from_txt(filename)
-          fnr, tnr, threshold = get_metric(data)
-          save_file = filename.replace(".txt",".png")
-          savefig(save_file, fnr, tnr, threshold, fdr_limit, tnr_limit)
-          idx005 = np.abs(fnr - 0.005).argmin()
-          idx01 = np.abs(fnr - 0.01).argmin()
-          idx05 = np.abs(fnr - 0.05).argmin()
-          th = threshold[idx01]
-          logging.info("The threshold is %.4f when intercept rate is 0.01!"%th)
-          res = {'tp': collections.defaultdict(list),
-                 'fn': collections.defaultdict(list),
-                 'tn': collections.defaultdict(list),
-                 'fp': collections.defaultdict(list)}
-          for path, item in zip(imagelist, data):
-            key = path.split('/')[-2]
-            if item[0] > th and item[-1] != 0:
-               res['fp'][key].append((path, item[0]))
-            elif item[0] < th and item[-1] == 0:
-               res['fn'][key].append((path, item[0]))
-#            elif item[0] > th and item[-1] == 0:
-#               res['tp'][key].append((path, item[0]))
-#            elif item[0] < th and item[-1] != 0:
-#               res['tn'][key].append((path, item[0]))
-          save_file = filename.replace('.txt', '.json')
-          json.dump(res, open(save_file, 'w'), indent=2)
-          
+          save_base = filename.replace(".txt","")
+
+        fnr, tnr, threshold = get_metric(data)
+        savefig(save_base+'.png', fnr, tnr, threshold, fdr_limit, tnr_limit)
+
+        idx005 = np.abs(fnr - 0.005).argmin()
+        idx01 = np.abs(fnr - 0.01).argmin()
+        idx05 = np.abs(fnr - 0.05).argmin()
+        th = threshold[idx01]
+        logging.info("The threshold is %.4f when intercept rate is 0.01!"%th)
+        res = {'tp': collections.defaultdict(list),
+               'fn': collections.defaultdict(list),
+               'tn': collections.defaultdict(list),
+               'fp': collections.defaultdict(list)}
+        for path, item in zip(imagelist, data):
+          key = path.split('/')[-2]
+          if item[0] > th and item[-1] != 0:
+             res['fp'][key].append((path, item[0]))
+          elif item[0] < th and item[-1] == 0:
+             res['fn'][key].append((path, item[0]))
+#          elif item[0] > th and item[-1] == 0:
+#             res['tp'][key].append((path, item[0]))
+#          elif item[0] < th and item[-1] != 0:
+#             res['tn'][key].append((path, item[0]))
+        json.dump(res, open(save_base+'.json', 'w'), indent=2)
     else:
       logging.fatal("Please specify result name")
       sys.exit(1)

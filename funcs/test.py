@@ -2,6 +2,7 @@ import os, sys
 import logging
 import numpy as np
 from PIL import Image
+from glob import glob
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -44,12 +45,16 @@ def test_net(net, model_path, cfgs):
 def test(cfgs):
     utils.set_device(cfgs.get("test", "device"),
                      cfgs.getint("test", "device_id"))
-    if cfgs.get("test", "params"):
-      model_path = cfgs.get("test", "params")
+    model_str = cfgs.get("test", "params")
+    if model_str:
+      model_list = glob(model_str)
+    else:
+      logging.info("Please specify the model!")
+      sys.exit(1)
+
+    for model_path in model_list:
       logging.info("Loading model %s"%model_path)
       net = get_net(cfgs.get("model", "net"),
                     cfgs.getint("model", "classes"),
                     model_path)
       test_net(net, model_path, cfgs)
-    else:
-      logging.info("Please specify the model!")

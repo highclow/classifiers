@@ -8,26 +8,26 @@ def get_config(args):
     config = configparser.ConfigParser()
     config.read(args.config)
 
+    ## List all contents
+    #logging.debug("List all contents")
+    #for section in config.sections():
+    #    logging.info("Section: %s" % section)
+    #    for options in config.options(section):
+    #        logging.info("x %s:::%s:::%s" % (options,
+    #                                  config.get(section, options),
+    #                                  str(type(options))))
+
+    print(args.func, args.weight, config[args.func])
     if args.weight:
         config[args.func]["params"] = args.weight
 
     if not torch.cuda.is_available():
         logging.info("No GPU found! Use CPU instead!")
-        config["train"]["device"] = "cpu"
-        config["val"]["device"] = "cpu"
-        config["test"]["device"] = "cpu"
+        config[args.func]["device"] = "cpu"
 
-    if args.result:
+    if args.func == "visualize" and args.result is not None:
         logging.info("Load result from %s"%args.result)
         config["visualize"]["filename"] = args.result
-    ## List all contents
-    #logging.debug("List all contents")
-    #for section in config.sections():
-    #    logging.debug("Section: %s" % section)
-    #    for options in config.options(section):
-    #        logging.debug("x %s:::%s:::%s" % (options,
-    #                                  config.get(section, options),
-    #                                  str(type(options))))
     
 
     # Print some contents
