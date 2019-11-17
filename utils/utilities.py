@@ -2,6 +2,7 @@ import os, errno
 import time
 import logging
 import torch
+import numpy as np
 
 def mkdir(path):
     try:
@@ -37,11 +38,12 @@ def write_to_txt(path, data):
           f.write(str(_string) + ' ')
         f.write('\n')
 
-def read_to_txt(path):
+def read_from_txt(path):
     imagelist = []
     data = []
     with open(path, 'r') as f:
       for item in f.readlines():
         tmp = item.split()
         imagelist.append(tmp[0])
-        data.append(list(map(int, tmp[1:])))
+        data.append(list(map(float, tmp[1:])))
+    return imagelist, np.asarray(data)

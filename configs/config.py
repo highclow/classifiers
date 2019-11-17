@@ -14,7 +14,7 @@ def get_config(args):
     if not torch.cuda.is_available():
         logging.info("No GPU found! Use CPU instead!")
         config["train"]["device"] = "cpu"
-        config["eval"]["device"] = "cpu"
+        config["val"]["device"] = "cpu"
         config["test"]["device"] = "cpu"
 
     if args.result:
