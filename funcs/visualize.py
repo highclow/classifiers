@@ -95,7 +95,7 @@ def visualize(cfgs):
         idx01 = np.abs(fnr - 0.01).argmin()
         idx05 = np.abs(fnr - 0.05).argmin()
         th = threshold[idx01]
-        logging.info("The threshold is %.4f when intercept rate is 0.01!"%th)
+        logging.info("The threshold is %.4f when intercept rate is 0.01, the recognize rate is %.4f!"%(th,tnr[idx01]))
         res = {'tp': collections.defaultdict(list),
                'fn': collections.defaultdict(list),
                'tn': collections.defaultdict(list),
