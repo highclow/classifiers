@@ -50,6 +50,11 @@ def train_net(net, criterion, dataloader, optimizer, scheduler, cfgs):
                                   cfgs.get("model", "net"))
               utils.mkdir(path)
               torch.save(net.state_dict(), path + "/" + "iter_%d_s%d.pt"%(iters, int(time.time())))
+
+        if iters > cfgs.getint('train', 'max_iter'):
+          break
+                 
+              
     elif lr_decay_mode == "epoch":
         logging.fatal("Epoch decay is not implentation")
         sys.exit(1)

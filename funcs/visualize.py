@@ -1,13 +1,14 @@
 #coding:utf-8
 import os, sys
+import cv2
 import logging
 import json
 import collections
 import numpy as np
 from glob import glob
 from sklearn import metrics
-import matplotlib.font_manager
 import matplotlib.pyplot as plt
+import matplotlib.font_manager
 plt.rcParams['font.sans-serif']=['SimHei'] #用来正常显示中文标签
 plt.rcParams['axes.unicode_minus']=False #用来正常显示负号
 
@@ -79,6 +80,7 @@ def visualize(cfgs):
             imagelist = os.path.join(cfgs.get('visualize', 'prefix'),
                                               '%s.txt'%res_file)
             imagelist, _ = read_from_txt(imagelist)
+            assert(len(data)==len(imagelist))
           except:
             logging.fatal('Cannot load file %s'%filename)
             continue
@@ -95,22 +97,79 @@ def visualize(cfgs):
         idx01 = np.abs(fnr - 0.01).argmin()
         idx05 = np.abs(fnr - 0.05).argmin()
         th = threshold[idx01]
-        logging.info("The threshold is %.4f when intercept rate is 0.01, the recognize rate is %.4f!"%(th,tnr[idx01]))
-        res = {'tp': collections.defaultdict(list),
-               'fn': collections.defaultdict(list),
-               'tn': collections.defaultdict(list),
-               'fp': collections.defaultdict(list)}
+        logging.info("Threshold: %.4f, intercept rate: %.4f, recognize rate: %.4f!"%(
+                     th,fnr[idx01],tnr[idx01]))
+        res = {'fpv': collections.defaultdict(list),
+               'fnv': collections.defaultdict(list),
+               #'tpv': collections.defaultdict(list),
+               #'tnv': collections.defaultdict(list),
+               #'tpt': collections.defaultdict(list),
+               #'tnt': collections.defaultdict(list),
+               'fnt': collections.defaultdict(list),
+               'fpt': collections.defaultdict(list)}
         for path, item in zip(imagelist, data):
           key = path.split('/')[-2]
           if item[0] > th and item[-1] != 0:
-             res['fp'][key].append((path, item[0]))
+             res['fpv'][key].append((path, item[0]))
           elif item[0] < th and item[-1] == 0:
-             res['fn'][key].append((path, item[0]))
+             res['fnv'][key].append((path, item[0]))
 #          elif item[0] > th and item[-1] == 0:
 #             res['tp'][key].append((path, item[0]))
 #          elif item[0] < th and item[-1] != 0:
 #             res['tn'][key].append((path, item[0]))
+
+        if 'val_list' in filename:
+          try:
+            test_res_file = glob(filename.split('val')[0] + 'test*')[0]
+            imagelist = os.path.join(cfgs.get('visualize', 'prefix'),
+                                              'test_list.txt')
+            imagelist, _ = read_from_txt(imagelist)
+            data = np.load(test_res_file)
+            fnr, tnr, threshold = get_metric(data)
+            idx = np.abs(fnr - th).argmin()
+            logging.info("Test Threshold: %.4f, intercept rate: %.4f, recognize rate: %.4f!"%(
+                         th,fnr[idx01],tnr[idx01]))
+            for path, item in zip(imagelist, data):
+              key = path.split('/')[-2]
+              if item[0] > th and item[-1] != 0:
+                 res['fpt'][key].append((path, item[0]))
+              elif item[0] < th and item[-1] == 0:
+                 res['fnt'][key].append((path, item[0]))
+          except:
+            continue
         json.dump(res, open(save_base+'.json', 'w'), indent=2)
+
+        if cfgs.getboolean('visualize','samples'):
+          root = cfgs.get('visualize', 'root')
+          nrows = cfgs.getint('visualize', 'nrows')
+          size = cfgs.getint('visualize', 'size')
+          for key, item in res.items():
+            res_img = []
+            for k, v in item.items():
+              print(key, k, len(v))
+              col = 0
+              save_img = np.ones((size, size*nrows, 3)) * 255
+              for d in v:
+                img = cv2.imread(os.path.join(root, d[0]))
+                img = cv2.resize(img, (size,size))
+                save_img[:, (col)*size:(col+1)*size, :] = np.copy(img)
+                col += 1
+                if col == nrows:
+                  cv2.putText(save_img,k, (0,size), 
+                      cv2.FONT_HERSHEY_SIMPLEX, 
+                      1, (255,0,0), 2)
+                  res_img.append(save_img.copy())
+                  save_img = np.ones((size, size*nrows, 3)) * 255
+                  col = 0
+
+              if col != 0:
+                cv2.putText(save_img,k, (0,size), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 
+                    1, (255,0,0), 2)
+                res_img.append(save_img.copy())
+            
+            plt.imsave('%s_%s.png'%(save_base, key), np.vstack(res_img).astype('uint8'))
+         
     else:
       logging.fatal("Please specify result name")
       sys.exit(1)

@@ -58,6 +58,13 @@ def validate(cfgs):
       model_list = sorted(sorted(model_list), key=len)
 
     for model_path in model_list:
+      val_list = cfgs.get('val','imagelist').split('/')[-1].split('.')[0]
+      prefix = model_path.replace('.pt', '_%s'%val_list)
+      res_file = glob(prefix+'*.npy')
+      if len(res_file) != 0:
+        logging.info("Test Result %s already existed!"%res_file[0])
+        continue
+      
       logging.info("Loading Model %s"%model_path)
       net = get_net(cfgs.get("model", "net"),
                     cfgs.getint("model", "classes"),
