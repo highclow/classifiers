@@ -154,14 +154,6 @@ def accuracy(output, target, topk=(1,)):
         return res
 
 
-def mkdir(path):
-    try:
-        os.makedirs(path)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-
-
 def setup_for_distributed(is_master):
     """
     This function disables printing when not in master process

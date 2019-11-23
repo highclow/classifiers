@@ -6,6 +6,7 @@ import torch.nn as nn
 import utils
 from datasets import get_imagelist_dataloader
 from models import get_net, get_optimizer, get_scheduler
+from models import LSoftmaxLinear
 
 
 def train_net(net, criterion, dataloader, optimizer, scheduler, cfgs):
@@ -75,6 +76,7 @@ def train(cfgs):
                   cfgs.getint("model", "classes"),
                   cfgs.get("train", "params"))
     criterion = nn.CrossEntropyLoss()
+    #criterion = LSoftmaxLinear()
     optimizer = get_optimizer(net, cfgs)
     scheduler = get_scheduler(optimizer, cfgs)
     train_net(net, criterion, trainloader, optimizer, scheduler, cfgs)

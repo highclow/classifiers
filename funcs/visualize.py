@@ -47,28 +47,30 @@ def get_metric(vec, cls=0):
       true_neg_rate.append((idx - 1 - k) * 1. / negative)
       threshold.append(scores[idx-1])
 
-    return np.array(false_neg_rate), np.array(true_neg_rate), np.array(threshold)
+    return (np.array(false_neg_rate), np.array(true_neg_rate),
+            np.array(threshold))
 
 
-def savefig(filename, fnr, tnr, threshold, fdr_limit, tnr_limit):
-     index = (fnr < fdr_limit) * (tnr > tnr_limit)
-     fnr = fnr[index]
-     tnr = tnr[index]
-     threshold = threshold[index]
+def savefig(filename, fnr, tnr, threshold, idx01, fdr_limit, tnr_limit,
+            intercept_limit, length, prefix):
+     logging.info("%s Cases: %d, Threshold: %.4f, intercept rate: %.4f, recognize rate: %.4f!"%(
+                  prefix,length,threshold,fnr[idx01],tnr[idx01]))
      plt.xlim(0., fdr_limit)
      plt.ylim(tnr_limit, 1.)
      plt.plot(fnr, tnr, c='red', lw=1, alpha=0.3)
      plt.xlabel(u'拦截率')
      plt.ylabel(u'识别率')
+     plt.axhline(tnr[idx01], linestyle='--', color='k') # horizontal lines
+     plt.axvline(fnr[idx01], linestyle='--', color='k') # vertical lines
      plt.savefig(filename)
      plt.close()
-
 
 def visualize(cfgs):
     """ Find the failure case """
     filename = cfgs.get('visualize', 'filename')
     fdr_limit = cfgs.getfloat('visualize', 'fnr_limit')
     tnr_limit = cfgs.getfloat('visualize', 'tnr_limit')
+    intercept_limit = cfgs.getfloat('visualize', 'intercept_limit')
     result_list = sorted(glob(filename))
     if len(result_list) > 0:
       for filename in result_list:
@@ -84,69 +86,63 @@ def visualize(cfgs):
           except:
             logging.fatal('Cannot load file %s'%filename)
             continue
-          fnr, tnr, threshold = get_metric(data)
           save_base = filename.replace(".npy","")
         elif '.txt' in filename:
           imagelist, data = read_from_txt(filename)
           save_base = filename.replace(".txt","")
 
         fnr, tnr, threshold = get_metric(data)
-        savefig(save_base+'.png', fnr, tnr, threshold, fdr_limit, tnr_limit)
 
-        idx005 = np.abs(fnr - 0.005).argmin()
-        idx01 = np.abs(fnr - 0.01).argmin()
-        idx05 = np.abs(fnr - 0.05).argmin()
-        th = threshold[idx01]
-        logging.info("Threshold: %.4f, intercept rate: %.4f, recognize rate: %.4f!"%(
-                     th,fnr[idx01],tnr[idx01]))
+        idx01 = ((fnr - intercept_limit) < 0).sum() - 1
+        th01 = threshold[idx01]
+        savefig(save_base+'.png', fnr, tnr, th01, idx01, fdr_limit,
+                tnr_limit, intercept_limit, len(data), 'Val')
+
         res = {'fpv': collections.defaultdict(list),
                'fnv': collections.defaultdict(list),
-               #'tpv': collections.defaultdict(list),
-               #'tnv': collections.defaultdict(list),
-               #'tpt': collections.defaultdict(list),
-               #'tnt': collections.defaultdict(list),
                'fnt': collections.defaultdict(list),
                'fpt': collections.defaultdict(list)}
         for path, item in zip(imagelist, data):
           key = path.split('/')[-2]
-          if item[0] > th and item[-1] != 0:
+          if item[0] > th01 and item[-1] != 0:
              res['fpv'][key].append((path, item[0]))
-          elif item[0] < th and item[-1] == 0:
+          elif item[0] < th01 and item[-1] == 0:
              res['fnv'][key].append((path, item[0]))
-#          elif item[0] > th and item[-1] == 0:
-#             res['tp'][key].append((path, item[0]))
-#          elif item[0] < th and item[-1] != 0:
-#             res['tn'][key].append((path, item[0]))
 
         if 'val_list' in filename:
           try:
-            test_res_file = glob(filename.split('val')[0] + 'test*')[0]
+            test_res_file = glob(filename.split('val')[0] + 'test*.npy')[0]
             imagelist = os.path.join(cfgs.get('visualize', 'prefix'),
                                               'test_list.txt')
             imagelist, _ = read_from_txt(imagelist)
             data = np.load(test_res_file)
-            fnr, tnr, threshold = get_metric(data)
-            idx = np.abs(fnr - th).argmin()
-            logging.info("Test Threshold: %.4f, intercept rate: %.4f, recognize rate: %.4f!"%(
-                         th,fnr[idx01],tnr[idx01]))
-            for path, item in zip(imagelist, data):
-              key = path.split('/')[-2]
-              if item[0] > th and item[-1] != 0:
-                 res['fpt'][key].append((path, item[0]))
-              elif item[0] < th and item[-1] == 0:
-                 res['fnt'][key].append((path, item[0]))
+            assert(len(imagelist) == len(data))
           except:
+            logging.fatal("Cannot load file!")
             continue
+
+          test_save_base = save_base.replace("val","test")
+          fnr, tnr, threshold = get_metric(data)
+          idx = np.abs(threshold - th01).argmin()
+          savefig(test_save_base+'.png', fnr, tnr, th01, idx, fdr_limit,
+                  tnr_limit, intercept_limit, len(data), 'Test')
+          for path, item in zip(imagelist, data):
+            key = path.split('/')[-2]
+            if item[0] > th01 and item[-1] != 0:
+               res['fpt'][key].append((path, item[0]))
+            elif item[0] < th01 and item[-1] == 0:
+               res['fnt'][key].append((path, item[0]))
         json.dump(res, open(save_base+'.json', 'w'), indent=2)
 
-        if cfgs.getboolean('visualize','samples'):
+        if 'val_list' in filename and cfgs.getboolean('visualize','samples'):
           root = cfgs.get('visualize', 'root')
           nrows = cfgs.getint('visualize', 'nrows')
           size = cfgs.getint('visualize', 'size')
           for key, item in res.items():
+            item = res[key]
             res_img = []
-            for k, v in item.items():
-              print(key, k, len(v))
+            for k in sorted(item.keys()):
+              v = item[k]
               col = 0
               save_img = np.ones((size, size*nrows, 3)) * 255
               for d in v:

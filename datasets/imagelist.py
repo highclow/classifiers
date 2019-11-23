@@ -17,8 +17,8 @@ def default_list_reader(fileList):
 
 def default_transform():
     transform = transforms.Compose(
-        [transforms.Resize(256),
-         transforms.CenterCrop(224),
+        [transforms.Resize(144),
+         transforms.CenterCrop(128),
          transforms.ToTensor(),
         ])
     return transform
@@ -49,9 +49,12 @@ def get_imagelist_dataloader(cfgs, split):
     logging.info('Create %s data loader from %s'%(split,cfgs.get(split,'imagelist')))
     if split == 'train':
       transform = transforms.Compose(
-              [transforms.Resize(256),
-#               RandomRotation(15),
-               transforms.RandomCrop(224),
+              [transforms.Resize(144),
+               #transforms.ColorJitter(brightness=10),
+               #transforms.ColorJitter(brightness=10, contrast=10,
+               #                       saturation=10, hue),
+               transforms.RandomRotation(30),
+               transforms.RandomCrop(128),
                transforms.RandomHorizontalFlip(),
 #               transforms.RandomErasing(),
                transforms.ToTensor(),

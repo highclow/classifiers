@@ -8,14 +8,17 @@ def get_net(net_name, num_classes, param_path, device="cpu"):
     logging.info("Create Network %s"%net_name)
     if net_name == "ResNet50":
       net = resnet50(num_classes=num_classes)
-      if param_path:
-        params = torch.load(param_path, map_location=device)
-        for n in net.state_dict().keys():
-          if n in params and params[n].shape == net.state_dict()[n].shape:
-            net.state_dict()[n][...] = params[n]
+    elif net_name == "ResNet18":
+      net = resnet18(num_classes=num_classes)
     else:
       logging.fatal("Please specify network!")
       sys.exit(1)
+
+    if param_path:
+      params = torch.load(param_path, map_location=device)
+      for n in net.state_dict().keys():
+        if n in params and params[n].shape == net.state_dict()[n].shape:
+          net.state_dict()[n][...] = params[n]
     return net
 
 
